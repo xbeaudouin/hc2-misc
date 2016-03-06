@@ -1,0 +1,131 @@
+Bonjour à tous,
+
+Cette solution, différente des autres, se base sur le fait que les objets wifi disposent d'un adresse "MAC" (ou ARP en anglais).
+
+Cette adresse est obligatoire et a le grand avantage de ne nécessiter aucun port ouvert sur l'appareil a tester.
+
+Prérequis :
+[LIST=1]
+[*] Une machine *nix (Linux : Raspberry, Synology, FreeBSD, ...).[/*]
+[*] Une HC2 (une version spécifique HCL viendra plus tard).[/*]
+[*] Du Perl avec la bibliothèque CGI sur la machine hôte.[/*]
+[*] Avoir un baux DHCP fixe (aka configurer une IP fixe) pour les appareils a surveiller.[/*]
+[/LIST]
+
+La solution se décompose en deux parties :
+[LIST=1]
+[*] Un script CGI qui se met sur un serveur *nix.[/*]
+[*] Un virtual module qui s'occupe de faire des demandes toutes les 10 minutes sur ce script CGI.[/*]
+[/LIST]
+
+Installation du CGI sur un serveur *nix.
+
+Je prends pour référence mon Raspberry PI qui fait tourner mon domoticz. Ayant eu la flemme d'installer un PI "à la main" j'avais déjà pris la "Domoticz RaspberryPI SD Image", que vous pouvez trouver à l'adresse suivante : http://www.domoticz.com/wiki/Domoticz_RaspberryPi_SD_Image.
+
+Accessoirement j'ai installé avahi afin de le trouver via bonjour sur mon Mac.
+
+Commandes a executer en root :
+[code]
+aptitude install avahi-daemon
+[/code]
+
+Normalement l'image PI pour domoticz dispose déjà d'un nginx préinstallé, il reste donc plus à ajouter fcgiwrap pour que le CGI soit executable depuis nginx.
+
+[code]
+aptitude install fcgiwrap
+[/code]
+
+Puis copier le fichier de configuration dans /etc/nginx :
+[code]
+cp /usr/share/doc/fcgiwrap/examples/nginx.conf /etc/nginx/fcgiwrap.conf
+[/code]
+
+Il suffit de créer un répertoire cgi-bin et downloader le script arp.pl :
+[code]
+mkdir -p /usr/lib/cgi-bin
+cd /usr/lib/cgi-bin
+wget --no-check-certificate https://redmine.oav.net/projects/kiwi/repository/revisions/master/raw/fibaro/arp/arp.pl
+chmod +x arp.pl
+[/code]
+
+Il reste à configurer le nginx pour qu'on puisse donc executer le CGI qui vas nous servir a trouver si le matériel fonctionne ou pas, créez le fichier /etc/nginx/site-available/cgi avec le contenu suivant :
+[code]
+server {
+        #listen   80; ## listen for ipv4; this line is default and implied
+        #listen   [::]:80 default_server ipv6only=on; ## listen for ipv6
+        listen 8000;
+
+        root /usr/share/nginx/www;
+        index index.html index.htm;
+
+        # Make site accessible from http://localhost/
+        server_name localhost;
+
+        location / {
+                # First attempt to serve request as file, then
+                # as directory, then fall back to displaying a 404.
+                try_files $uri $uri/ /index.html;
+                # Uncomment to enable naxsi on this location
+                # include /etc/nginx/naxsi.rules
+        }
+
+        include /etc/nginx/fcgiwrap.conf;
+
+}
+[/code]
+
+Puis activez le site :
+[code]
+cd /etc/nginx/site-enabled && ln -s ../sites-available/cgi
+nginx -t
+[/code]
+
+Au "nginx -t" un test de syntaxe du fichier de conf vas être effectuée normalement si vous avez autre chose que :
+[code]
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+[/code]
+C'est qu'il y a un erreur quelque part dans votre configuration.
+
+Dans le cas où tout vas bien, relancez le service nginx :
+[code]
+service nginx restart
+[/code]
+
+Puis nous pouvons passer au test CGI.
+
+Exemple avec une ip en 192.168.0.50, mettez dans votre navigateur : http://ip.du.pi.lan:8000/cgi-bin/arp.pl?host=192.168.0.50, devrait vous donner le JSON suivant (si cette machine existe et que vous arrivez a pinger cette machine depuis le PI) :
+
+[code]
+{
+hostname: "192.168.0.50",
+ipv4: "192.168.0.50",
+MAC: "aa:bb:cc:dd:ee:ff"
+}
+[/code]
+
+La partie *nix est donc finie.
+
+Installation de la partie HC2.
+
+Téléchargez le virtual module à l'adresse : [url=https://redmine.oav.net/projects/kiwi/repository/revisions/master/raw/fibaro/arp/presence.vfib]https://redmine.oav.net/projects/kiwi/repository/revisions/master/raw/fibaro/arp/presence.vfib[/url] (Si le certificat SSL fais la tronche c'est pas grave, je le mettrais à jour bientôt).
+
+Dans la configuration du modules, mettez l'ip correspondant au PI et le Port correspondant a celui que vous avez ouvert précédemment (dans mon exemple : 8000).
+
+Dans le code du bouton 1, completez les lignes suivantes avec *vos* paramètres :
+[code]
+local cgi = "/cgi-bin/arp.pl";
+local what = "192.168.0.50";
+[/code]
+Pour aller avec l'exemple ci dessus.
+
+A noter que vous avez besoin de créer une variable locale qui s'appelle : Phone_<valeurdewhat>, par exemple : Phone_192.168.0.50 avec comme 2 valeurs 1 ou 0.
+
+Après laissez le reste se faire, normalement les icônes changent tout seul et la ligne de status affiche correctement les bonnes infos.
+
+Enjoy et informez moi des pb ou evolutions.
+
+Xavier
+PS1: License du module : MPL1.1, URL de mon git : [url=https://redmine.oav.net/projects/kiwi/repository/revisions/master/show/fibaro/arp]https://redmine.oav.net/projects/kiwi/repository/revisions/master/show/fibaro/arp[/url] 
+PS2: Si bug utilisez l'option "Nouvelle demande" afin que je corrige/adapte :)
+

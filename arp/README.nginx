@@ -1,0 +1,4 @@
+If you use nginx like for example on Raspberry PI with Domoticz, you'll
+have to use fcgiwrap to install a CGI wrapper for NGINX.
+
+See http://wiki.nginx.org/Fcgiwrap

@@ -1,0 +1,21 @@
+This code is an ARP Ping function that allow users to check is a mobile device
+that does, for example Wifi, is present or not in the House (ou near the house).
+
+Idea if to check on the ARP table on Unix server (Tested on Linux with a Raspberry PI, and FreeBSD)
+that the named host is in the local ARP table.
+
+This is far more usuable than ping, since some devices like iPhones are not every time on the
+Wifi to avoid too mutch usage of battery.
+
+You have to check that ARP table on the host is not cleaned too early.
+On FreeBSD add : net.link.ether.inet.max_age=1800 on your /etc/sysctl.conf file.
+
+On Linux : TODO
+
+Seem that on Raspberry PI with Avahi the TTL of ARP cache table is very high. Didn't yet 
+find a reason.
+
+Files :
+arp.pl : the CGI perl script to be executed as CGI. 
+arpping.lua: the button code used to check if the user is here or not.
+presence.vfib : the HC Virtual device

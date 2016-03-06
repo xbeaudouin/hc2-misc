@@ -1,0 +1,207 @@
+Taken from : http://forum.fibaro.com/viewtopic.php?p=23600o
+
+This code is a LUA based scheduler that allows you to manage all timers from one scene. 
+
+It only runs when there are events to process not every 1 minute. 
+
+It replaces the loop/ get time/ if time is good then action then sleep. I do not know if it is more efficient than the blocks but it is more efficient than the standard LUA generated. 
+
+I have now tested with over 1000 actions and it runs fine. 
+
+WHAT YOU NEED TO CHANGE: 
+
+Insert lines in the marked section 
+
+luaDaySchedule:add(<time>,<id>, <parameter> , <action>, <days> ,<catchup>,<p1>,<p2>,<p3>) 
+
+THE TIME TO RUN: 
+
+<time> sting representation of time in 24h format eg "23:21" 
+
+note: you can not use a global variable to vary the time of an event unless you force a restart of the scene 
+
+SUNRISE SUNSET + OR - MINUTES: 
+
+Schedules solar based events with + or - n minutes delay or advance. 
+
+<time> "Sunrise" or "Sunset" 
+<p1> positive or negative number of minutes 
+
+ID OF DEVICE or SCENE : 
+
+<id> string or numeric id of a device or LUA table of ids 
+
+WHAT ACTIONS: 
+
+switch a device on or off 
+set a dimmer value 
+send an email, 
+send a push notifications to all devices 
+send an email notification to all users 
+send a push notification to a device 
+send an email notification to an user 
+push a virtual device button 
+set a virtual device slider 
+set a global variable 
+arm or disarm a device 
+set RGB colour 
+run another scene 
+set target level 
+kill scene (1.1.1 not tested) 
+enable scene (1.1.1 not tested) 
+debug (1.1.1 not tested) 
+setThermostat time and temp at same time 
+getValue and store in global 
++ as an example of own function 
+get remaining time and store in a global and 
+a function that stores n temperature sensors values in n globals 
+
+
+<action> one of "call" 
+"setGlobal" 
+"startScene" 
+"pressButton" 
+"setSlider" 
+"setValue" 
+"sendEmail" 
+"sendGlobalPushNotifications" 
+"sendGlobalEmailNotifications" 
+"sendDefinedPushNotification" 
+"sendDefinedEmailNotification" 
+"setTime" 
+"setArmed" 
+"setRGBColor" 
+"setTargetLevel" 
+"killScenes" 
+"setSceneEnabled" 
+"debug" 
+"setThermostat" 
+"getValue" 
+
+<parameter> the value of any parameter needed for the action see samples in module for individual actions 
+
+You can define extra functions within the module and schedule when to run. See note 
+
+CATCH UP RECENT ACTIONS: 
+
+<catchup> true or false 
+
+When restarting HC2 or editing the scene, the current state of all scheduled items is parsed so that the system plays the last action that should have executed prior to the current time. This will set all variables and devices to the state scheduled with no user interaction. 
+
+By default the code parses 24hrs of events to work out current state. Mark as true or false on action add to set to catchup or not. 
+
+The catch up works for devices, scenes and variables that are always controlled by the timer. The function works out what state the device, scene and variables should be set to at the time the HC2 is restarted or scene is saved and sets it to that level/value. 
+
+If the device is regularly switched manually you need to decide if you want to use the function as you may be better to leave the device in the last state or off controlled by the parameters on the device. 
+
+It works well for variables like isNight or timeOfDay. Good for heating and hot water as it makes sure the heating is on or off after the HC2 is restarted. 
+
+SCHEDULE ONLY CERTAIN OR ALL DAYS: 
+
+<days> a LUA table of strings days of the week (in english though you could edit the module> :-D 
+
+You can schedule Sunday and Monday for example by setting {"Sunday","Monday"} in the add call. 
+
+There are three specials 
+{"All"} = all days, 
+{"Weekend"} = Saturday and Sunday, 
+{"Weekday"} = Monday to Friday. 
+these can be combined with normal days 
+{"Weekend","Monday"} = Saturday, Sunday and Monday, 
+
+REPEAT: 
+
+<p1> the number of times to repeat starting with the scheduled time 
+<p2> the number of minutes between repeats 
+<p3> a value to increment the value by 
+
+You can schedule multiple/repeat actions after the initial action with a single line so you can slowly increase or decrease a dimmer or slider value. 
+
+On RGB controller you can slowly change colour and brightness with multiple actions using a single line. 
+
+Repeat does not work on events scheduled using sunrise, sunset, weekday, and weekend. 
+
+MORE ON HOW TO USE: 
+Usage is explained by example see comment --examples in code. 
+
+Copy code into a LUA scene and save. 
+
+Then add your own schedule lines <ADD YOUR LINES HERE> using the examples as templates and remove the text <ADD YOUR LINES HERE> 
+
+NOTE this version adds: 
+-- send notifications 
+
+--luaDaySchedule:add("10:49",{"2","2"}, {1,2} , "sendDefinedEmailNotification", {"All"} ,true ) 
+--luaDaySchedule:add("10:49","2", 1 , "sendDefinedEmailNotification", {"All"} ,true ) 
+--luaDaySchedule:add("10:49","229", 1 , "sendDefinedPushNotification", {"All"} ,true ) 
+--luaDaySchedule:add("10:49",{"229","252"}, {2,2} , "sendDefinedPushNotification", {"All"} ,true ) 
+
+--luaDaySchedule:add("10:49",{"2","2"}, {1,2} , "sendGlobalEmailNotifications", {"All"} ,true ) 
+--luaDaySchedule:add("10:49","2", 1 , "sendGlobalEmailNotifications", {"All"} ,true ) 
+--luaDaySchedule:add("10:49","229", 1 , "sendGlobalPushNotifications", {"All"} ,true ) 
+--luaDaySchedule:add("10:49",{"229","252"}, {2,2} , "sendGlobalPushNotifications", {"All"} ,true ) 
+
+--luaDaySchedule:add("10:49",'189', {'title' ,'body message'} , "sendEmail", {"All"} ,true ) 
+
+If you have a problem that requires both a time and other checks using if this then else if then else if then else. Embed the if this then else if then else if then else in another scene and schedule that scene from the scheduler. 
+
+
+DEBUG: 
+You can get more/less info in debug window of HC2 but will only display so much due to window length. 
+
+Code: 
+local debugadd = false; 
+local debugcatch = false; 
+local debug = false; --solar 
+--prints when it runs to debug 
+local reportRun = true; 
+
+
+UPGRADING: 
+Back up your lines in a text edit program. i.e. the ones you have added <ADD YOUR LINES HERE>. 
+
+Open the new file and paste your lines over <ADD YOUR LINES HERE>. 
+
+Follow any instructions on how to edit lines given with release. 
+
+HOW IT WORKS: 
+The scene is set to autorun and will only run one instance. 
+
+On start all of the lines you have defined in the add section are loaded to a LUA table. Any lines that are repeated n times at an interval with a value increment are generated and stored in the same table. 
+
+The code then parses the table and constructs a list of actions to run to catch up. One event per device is then run to bring the system to the approximate state if the schedule was run unattended. Note the true false value on the add to define it the event should be caught up. 
+
+The sunrise and sunset events are calculated during the day so they adjust with the change in solar cycles. These are stored in separate tables. 
+
+The code then runs any event scheduled for now, calculates the next time to run and goes to sleep until needed again. If you have reporting on you will note a message reporting a time correction. This is a calculation to make sure schedule executes at the middle of the minute. 
+
+With run report flag set to true output is like this: (most of my events removed to illustrate the long sleeps and have a short list) 
+
+Code: 
+[DEBUG] 09:17:20: Catching up actions. 
+[DEBUG] 09:17:20: Event scheduled for 08/05/13 at 05:00 
+[DEBUG] 09:17:20: fibaro:setGlobal("TimeOfDay","Morning") 
+[DEBUG] 09:17:20: Event scheduled for 08/05/13 at 05:55 
+[DEBUG] 09:17:20: fibaro:setGlobal("NightTime","0") 
+[DEBUG] 09:17:20: Event scheduled for 08/05/13 at 06:00 
+[DEBUG] 09:17:20: fibaro:call(19,"turnOn") 
+[DEBUG] 09:17:20: Event scheduled for 08/05/13 at 08:00 
+[DEBUG] 09:17:20: fibaro:setGlobal("HotWaterHeat","0") 
+[DEBUG] 09:17:20: Catching up finished. 
+[DEBUG] 09:17:20: Next Run at 10:30:30 
+[DEBUG] 09:17:20: Correct by -10s error, 
+[DEBUG] 09:17:20: Going to sleep for 73mins 
+[DEBUG] 10:30:30: Schedule running at 10:30:30 
+[DEBUG] 10:30:30: fibaro:call(19,"turnOff") 
+[DEBUG] 10:30:30: Next Run at 12:00:30 
+[DEBUG] 10:30:30: Correct by 0s error, 
+[DEBUG] 10:30:30: Going to sleep for 90mins 
+[DEBUG] 12:00:30: Schedule running at 12:00:30 
+[DEBUG] 12:00:30: fibaro:setGlobal("TimeOfDay","Afternoon") 
+[DEBUG] 12:00:30: Next Run at 12:05:30 
+[DEBUG] 12:00:30: Correct by 0s error, 
+[DEBUG] 12:00:30: Going to sleep for 5mins 
+
+
+Known Issues : no validation on some values	
+
